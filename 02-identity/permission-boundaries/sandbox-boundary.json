@@ -1,0 +1,31 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowReadMostlyWithLimitedWrites",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:Describe*",
+        "s3:List*",
+        "s3:Get*",
+        "cloudwatch:Get*",
+        "cloudwatch:List*",
+        "logs:Describe*",
+        "logs:Get*",
+        "iam:Get*",
+        "iam:List*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ExplicitDenyCostlyServices",
+      "Effect": "Deny",
+      "Action": [
+        "eks:*",
+        "emr:*",
+        "redshift:*"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

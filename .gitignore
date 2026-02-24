@@ -1,0 +1,49 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfplan
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
+
+# Variables (keep examples only)
+*.tfvars
+!*.tfvars.example
+*.auto.tfvars
+!*.auto.tfvars.example
+
+# Secrets / keys / certs
+*.pem
+*.key
+*.crt
+*.cer
+*.pfx
+*.p12
+*.jks
+*.keystore
+id_rsa
+id_rsa.pub
+
+# Cloud creds (never commit)
+.aws/
+.azure/
+.gcp/
+kubeconfig
+*.kubeconfig
+
+# Env / local
+.env
+.env.*
+*.local
+*.bak
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

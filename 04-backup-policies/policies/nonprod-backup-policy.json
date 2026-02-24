@@ -1,0 +1,50 @@
+{
+  "plans": {
+    "NonProdPlan": {
+      "regions": {
+        "@@assign": [
+          "us-east-1",
+          "us-east-2"
+        ]
+      },
+      "rules": {
+        "DailyBackups": {
+          "schedule_expression": {
+            "@@assign": "cron(0 5 ? * * *)"
+          },
+          "start_backup_window_minutes": {
+            "@@assign": 60
+          },
+          "complete_backup_window_minutes": {
+            "@@assign": 360
+          },
+          "lifecycle": {
+            "delete_after_days": {
+              "@@assign": 7
+            }
+          },
+          "target_backup_vault_name": {
+            "@@assign": "Default"
+          }
+        }
+      },
+      "selections": {
+        "tags": {
+          "ByTag": {
+            "iam_role_arn": {
+              "@@assign": "arn:aws:iam::$account:role/service-role/AWSBackupDefaultServiceRole"
+            },
+            "tag_key": {
+              "@@assign": "Backup"
+            },
+            "tag_value": {
+              "@@assign": [
+                "true"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
