@@ -96,10 +96,17 @@ flowchart TD
 
 # Repository Structure
 
-aws-landing-zone/ - 01-governance/ - 02-identity/ -
-03-security-baseline/ - 04-backup-policies/ - 06-regional/ -
-us-east-1/ - us-east-2/ - 07-workload-integration/ -
-09-enterprise-advanced/ - env/ - lab.auto.tfvars
+aws-landing-zone/
+    - 01-governance/ 
+    - 02-identity/ -
+    - 03-security-baseline/ 
+    - 04-backup-policies/ 
+    - 06-regional/ -
+        - us-east-1/ 
+        - us-east-2/ 
+    - 07-workload-integration/ 
+    - 09-enterprise-advanced/ 
+    - env/ - lab.auto.tfvars
 
 ------------------------------------------------------------------------
 
