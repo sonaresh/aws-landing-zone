@@ -25,63 +25,71 @@ This implementation demonstrates:
 # Architecture Overview
 
 ``` mermaid
-flowchart TB
+flowchart TD
 
-  subgraph AWS Organization
-    Root[Root]
-    InfraOU[Infrastructure OU]
-    SecurityOU[Security OU]
-    WorkloadsOU[Workloads OU]
-    SandboxOU[Sandbox OU]
-  end
+    Org[AWS Organization Root]
 
-  subgraph Governance Layer
-    SCP1[SCP - IAM Guardrails]
-    SCP2[SCP - Encryption Enforcement]
-    SCP3[SCP - Region Allowlist]
-    SCP4[SCP - Logging Protection]
-    SCP5[SCP - Quarantine Pattern]
-  end
+    %% OU Structure
+    subgraph OU_Structure
+        InfraOU[Infrastructure OU]
+        SecurityOU[Security OU]
+        WorkloadsOU[Workloads OU]
+        SandboxOU[Sandbox OU]
+    end
 
-  subgraph Identity Layer
-    Boundary[Permission Boundaries]
-    Breakglass[Break-glass Role]
-    AuditRole[Audit Role]
-  end
+    %% Governance
+    subgraph Governance
+        SCP[SCP Guardrails]
+    end
 
-  subgraph Regional Baseline
-    USE1[Baseline - us-east-1]
-    USE2[Baseline - us-east-2]
-  end
+    %% Identity
+    subgraph Identity
+        Boundaries[Permission Boundaries]
+        Breakglass[Break-glass Role]
+        Audit[Audit Role]
+    end
 
-  subgraph Workload Integration
-    S3[Encrypted S3 Bucket]
-    AppRole[Application IAM Role]
-  end
+    %% Regional
+    subgraph Regional
+        USE1[Regional Baseline - us-east-1]
+        USE2[Regional Baseline - us-east-2]
+    end
 
-  subgraph Enterprise Advanced
-    SecLake[Security Lake Optional]
-    FMS[Firewall Manager Optional]
-  end
+    %% Workload
+    subgraph Workload
+        AppRole[Application IAM Role]
+        SecureS3[Encrypted S3]
+    end
 
-  Root --> SCP1
-  Root --> SCP2
-  Root --> SCP3
-  Root --> SCP4
-  Root --> SCP5
+    %% Advanced
+    subgraph Advanced
+        SecurityLake[Security Lake Optional]
+        FMS[Firewall Manager Optional]
+    end
 
-  SCP1 --> InfraOU
-  SCP1 --> SecurityOU
-  SCP1 --> WorkloadsOU
-  SCP1 --> SandboxOU
+    %% Connections
+    Org --> InfraOU
+    Org --> SecurityOU
+    Org --> WorkloadsOU
+    Org --> SandboxOU
 
-  Boundary --> WorkloadsOU
-  USE1 --> WorkloadsOU
-  USE2 --> WorkloadsOU
-  AppRole --> WorkloadsOU
+    SCP --> InfraOU
+    SCP --> SecurityOU
+    SCP --> WorkloadsOU
+    SCP --> SandboxOU
 
-  SecLake --> Root
-  FMS --> Root
+    Boundaries --> WorkloadsOU
+    Breakglass --> SecurityOU
+    Audit --> SecurityOU
+
+    USE1 --> WorkloadsOU
+    USE2 --> WorkloadsOU
+
+    AppRole --> SecureS3
+    SecureS3 --> WorkloadsOU
+
+    SecurityLake --> Org
+    FMS --> Org
 ```
 
 ------------------------------------------------------------------------
