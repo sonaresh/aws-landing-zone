@@ -30,7 +30,7 @@ aws-landing-zone/
 ├── 02-identity/                 # IAM boundaries and access control
 ├── 03-security-baseline/        # Organization security services (delegated admin scaffolding)
 ├── 04-backup-policies/          # Backup governance policies (Org backup policies)
-├── 05-network-core/             # RESERVED (separate repo by design)
+├── 05-account-vending           # Create a new AWS account
 ├── 06-regional/
 │   ├── us-east-1/               # Regional baseline (Primary)
 │   └── us-east-2/               # Regional baseline (DR)
@@ -42,7 +42,6 @@ aws-landing-zone/
 ```
 
 > **Reserved folders**
-> - **05-network-core** is intentionally out of this repo (network is a separate Terraform project).
 > - **08-platform-services** is reserved for future shared platform baselines (EKS baseline, shared services, etc.).
 
 ### Note about `env/`
@@ -76,9 +75,10 @@ Each folder is a small Terraform stack.
 3. `02-identity` (boundaries + roles)
 4. `03-security-baseline` (delegated admin registrations)
 5. `04-backup-policies` (org backup policies)
-6. `06-regional/us-east-1` and `06-regional/us-east-2`
-7. `07-workload-integration` (example onboarding in a workload account)
-8. `09-enterprise-advanced` (optional, turn on one feature at a time)
+6. `05-account-vending` (Create a new AWS account)
+7. `06-regional/us-east-1` and `06-regional/us-east-2`
+8. `07-workload-integration` (example onboarding in a workload account)
+9. `09-enterprise-advanced` (optional, turn on one feature at a time)
 
 ---
 
@@ -213,6 +213,313 @@ Inputs:
 
 ---
 
+### 05 – Account Vending (Enterprise Class-Based Model)
+
+## Overview
+
+This module provisions AWS accounts using a **class-based enterprise model**.
+
+Instead of manually selecting OUs or SCPs for every account, we define:
+
+- Account Classes (prod, dev, sandbox, security, infra, suspended)
+- OU mapping per class
+- SCP policy matrix per class
+- Standardized tagging
+
+This guarantees:
+
+- Consistent governance
+- Automatic guardrail enforcement
+- Clean separation of responsibilities
+- Scalable account provisioning
+
+---
+
+# Architecture Flow
+
+```mermaid
+flowchart TD
+
+    Request[Account Request]
+    Class[Account Class Resolution]
+    Create[Create AWS Account]
+    Move[Move Account to Correct OU]
+    SCP[Attach SCP Set Based on Class]
+    Tags[Apply Standard Tags]
+
+    Request --> Class
+    Class --> Create
+    Create --> Move
+    Move --> SCP
+    SCP --> Tags
+```
+
+---
+
+# Directory Structure
+
+```
+05-account-vending/
+│
+├── main.tf
+├── variables.tf
+├── locals.tf
+├── providers.tf
+├── versions.tf
+├── account-classes.auto.tfvars
+├── accounts.auto.tfvars
+└── README.md
+```
+
+---
+
+# How It Works
+
+## 1️⃣ Account Classes
+
+Defined in:
+
+```
+account-classes.auto.tfvars
+```
+
+Each class defines:
+
+- Target OU
+- SCP policies to attach
+- Suspension behavior
+
+Example:
+
+```hcl
+account_classes = {
+  prod = {
+    ou              = "workloads-prod"
+    attach_scps     = ["region", "logging", "encryption", "iam"]
+    suspend_allowed = false
+  }
+
+  sandbox = {
+    ou              = "sandbox"
+    attach_scps     = ["region"]
+    suspend_allowed = false
+  }
+
+  suspended = {
+    ou              = "quarantine"
+    attach_scps     = ["quarantine"]
+    suspend_allowed = true
+  }
+}
+```
+
+---
+
+## 2️⃣ Account Requests
+
+Defined in:
+
+```
+accounts.auto.tfvars
+```
+
+Example:
+
+```hcl
+accounts = {
+
+  "sandbox-app-002" = {
+    email = "sandbox-app-002@infy8.com"
+    class = "sandbox"
+  }
+
+  "prod-app-003" = {
+    email = "prod-app-003@infy8.com"
+    class = "prod"
+  }
+}
+```
+
+You only define:
+
+- Account name
+- Email
+- Class
+
+Everything else is automated.
+
+---
+
+# What Happens Automatically
+
+When you run Terraform:
+
+1. Account is created
+2. Account is moved to correct OU
+3. Correct SCP set is attached
+4. Standard tags are applied
+5. Default access role is created
+
+No manual OU selection.
+No manual SCP wiring.
+No manual tagging.
+
+---
+
+# SCP Policy Mapping
+
+SCP IDs must be defined in `env/lab.auto.tfvars`:
+
+```hcl
+scp_policy_ids = {
+  region      = "p-xxxx"
+  logging     = "p-xxxx"
+  encryption  = "p-xxxx"
+  iam         = "p-xxxx"
+  quarantine  = "p-xxxx"
+}
+```
+
+These are dynamically attached based on account class.
+
+---
+
+# Running the Module
+
+From inside the directory:
+
+```bash
+cd 05-account-vending
+terraform init
+terraform plan  -var-file="../env/lab.auto.tfvars"
+terraform apply -var-file="../env/lab.auto.tfvars"
+```
+
+Terraform automatically loads:
+
+- account-classes.auto.tfvars
+- accounts.auto.tfvars
+
+You do NOT need to pass them manually.
+
+---
+
+# Account Lifecycle Rules
+
+## Create New Account
+
+1. Add entry to `accounts.auto.tfvars`
+2. Run `terraform apply`
+
+## Suspend Account
+
+Change its class to:
+
+```hcl
+class = "suspended"
+```
+
+Re-run Terraform.
+
+The account moves to quarantine OU and attaches deny-all SCP.
+
+## Production Guardrails
+
+Prod accounts automatically receive:
+
+- Region restriction
+- Logging protection
+- Encryption enforcement
+- IAM privilege escalation protection
+
+---
+
+# Tagging Model
+
+Each account automatically receives:
+
+- Owner
+- CostCenter
+- Program
+- Org
+- Layer = account-vending
+- AccountName
+- AccountClass
+
+Tags are centrally controlled in `locals.tf`.
+
+---
+
+# Security Design
+
+| Class       | OU Placement        | SCP Strictness |
+|------------|---------------------|----------------|
+| prod       | workloads-prod      | High |
+| dev        | workloads-nonprod   | Medium |
+| sandbox    | sandbox             | Relaxed |
+| security   | security            | Restricted |
+| infra      | infrastructure      | Controlled |
+| suspended  | quarantine          | Deny-All |
+
+---
+
+# Important Notes
+
+- Account creation may take several minutes.
+- Email must be unique per AWS account.
+- Accounts use `prevent_destroy = true` for safety.
+- Deleting AWS accounts is not immediate or simple.
+
+---
+
+# Best Practice Recommendation
+
+For enterprise use:
+
+- Manage account requests via Pull Requests
+- Restrict who can edit account classes
+- Use CI/CD pipeline to apply vending module
+- Store Terraform state in remote backend (S3 + DynamoDB lock)
+
+---
+
+# Remote State Recommendation (Enterprise)
+
+Add backend configuration:
+
+```hcl
+terraform {
+  backend "s3" {
+    bucket         = "lz-terraform-state"
+    key            = "05-account-vending/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "lz-terraform-locks"
+    encrypt        = true
+  }
+}
+```
+
+This ensures:
+
+- State locking
+- Team collaboration
+- Production safety
+
+---
+
+# Summary
+
+This module implements:
+
+- Class-based enterprise account vending
+- Automatic OU routing
+- Automatic SCP matrix enforcement
+- Centralized tagging
+- Safe lifecycle handling
+- Scalable governance model
+
+You are now operating at enterprise landing zone architecture level.
+
 ### 06-regional (regional baselines)
 Purpose: per-region baseline resources (placeholders you can grow).
 
@@ -309,34 +616,6 @@ backup_retention_days_sandbox = 7
 ```
 
 Keep secrets out of `*.tfvars`. Use SSM Parameter Store, Terraform Cloud variables, Vault, or your CI/CD secret store.
-
----
-
-## Future folders (05 and 08): recommended structure
-
-### 05-network-core (separate repo)
-This is where TGW, shared VPCs, centralized egress/ingress, inspection VPC, Route53 Resolver rules, IPAM, Firewall appliances, etc. should live.
-
-Suggested structure:
-
-```text
-05-network-core/
-├── 00-bootstrap/                 # backend/providers, shared tags
-├── 01-ipam/
-├── 02-tgw/
-├── 03-shared-vpcs/
-├── 04-egress/
-├── 05-ingress/
-├── 06-dns-resolver/
-└── env/
-    ├── prod.auto.tfvars
-    └── nonprod.auto.tfvars
-```
-
-Outputs from the network repo (TGW ARN, resolver rules, shared subnets) should be consumed via:
-- RAM shares + acceptance automation (workload-side), or
-- remote state data sources (if your org allows it), or
-- Parameter Store / config registry.
 
 ---
 
