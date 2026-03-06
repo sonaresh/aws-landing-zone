@@ -325,6 +325,14 @@ accounts.auto.tfvars
 
 Example:
 
+1.  01-governance\
+2.  02-identity\
+3.  03-security-baseline\
+4.  04-backup-policies\
+5.  05-account-vending
+5.  06-regional (per region)\
+6.  07-workload-integration\
+7.  09-enterprise-advanced (optional)
 ```hcl
 accounts = {
 
